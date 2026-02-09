@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>五子棋遊戲</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #f0e6d6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #8B4513;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f8f5f0;
+            border-radius: 8px;
+        }
+
+        #info {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .game-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(15, 1fr);
+            grid-template-rows: repeat(15, 1fr);
+            gap: 1px;
+            background: #deb887;
+            padding: 10px;
+            border: 3px solid #8B4513;
+            border-radius: 8px;
+            aspect-ratio: 1/1;
+            margin: 0 auto;
+            max-width: 500px;
+        }
+
+        .cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .cell::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 1px;
+            background: rgba(0, 0, 0, 0.7);
+            top: 50%;
+            left: 0;
+        }
+
+        .cell::after {
+            content: '';
+            position: absolute;
+            width: 1px;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            left: 50%;
+            top: 0;
+        }
+
+        /* 天元和星位 */
+        .cell[data-r="7"][data-c="7"]::before,
+        .cell[data-r="3"][data-c="3"]::before,
+        .cell[data-r="3"][data-c="11"]::before,
+        .cell[data-r="11"][data-c="3"]::before,
+        .cell[data-r="11"][data-c="11"]::before {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #333;
+            z-index: 0;
+        }
+
+        .piece {
+            width: 85%;
+            height: 85%;
+            border-radius: 50%;
+            position: relative;
+            z-index: 1;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .black {
+            background: radial-gradient(circle at 30% 30%, #555, #000);
+        }
+
+        .white {
+            background: radial-gradient(circle at 30% 30%, #fff, #ddd);
+            border: 1px solid #ccc;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 8px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #restart {
+            background: #8B4513;
+            color: white;
+        }
+
+        #restart:hover {
+            background: #6d340f;
+        }
+
+        #undo {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        #undo:hover {
+            background: #ccc;
+        }
+
+        /* 勝利彈窗 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            max-width: 350px;
+            width: 90%;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+
+        .modal.active .modal-content {
+            transform: scale(1);
+        }
+
+        .modal h2 {
+            color: #8B4513;
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+
+        .modal p {
+            margin-bottom: 20px;
+            color: #666;
+        }
+
+        .modal button {
+            background: #8B4513;
+            color: white;
+            width: 100%;
+        }
+
+        /* 響應式調整 */
+        @media (max-width: 500px) {
+            .game-info {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+            
+            .game-stats {
+                gap: 10px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            #info {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>五子棋</h1>
+        
+        <div class="game-info">
+            <div id="info">輪到：黑棋</div>
+            <div class="game-stats">
+                <div>遊戲時間: <span id="game-time">00:00</span></div>
+                <div>已走步數: <span id="move-count">0</span></div>
+            </div>
+        </div>
+        
+        <div id="board"></div>
+        
+        <div class="controls">
+            <button id="undo">悔棋</button>
+            <button id="restart">重新開始</button>
+        </div>
+    </div>
+
+    <!-- 勝利彈窗 -->
+    <div class="modal" id="win-modal">
+        <div class="modal-content">
+            <h2 id="winner-text">黑棋獲勝！</h2>
+            <p>恭喜你贏得這場對弈！</p>
+            <button id="modal-restart">再玩一局</button>
+        </div>
+    </div>
+
+    <script>
+        const SIZE = 15;
+        let board = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+        let current = 1; // 1=黑 2=白
+        let gameOver = false;
+        let moveHistory = []; // 記錄走步歷史，用於悔棋
+        let gameTime = 0;
+        let timerInterval;
+
+        // DOM元素
+        const boardEl = document.getElementById('board');
+        const infoEl = document.getElementById('info');
+        const restartBtn = document.getElementById('restart');
+        const undoBtn = document.getElementById('undo');
+        const winModal = document.getElementById('win-modal');
+        const winnerText = document.getElementById('winner-text');
+        const modalRestartBtn = document.getElementById('modal-restart');
+        const gameTimeEl = document.getElementById('game-time');
+        const moveCountEl = document.getElementById('move-count');
+
+        // 初始化棋盤
+        function initBoard() {
+            boardEl.innerHTML = '';
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+                    cell.addEventListener('click', drop);
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        // 下棋邏輯
+        function drop(e) {
+            if (gameOver) return;
+            const r = +e.currentTarget.dataset.r;
+            const c = +e.currentTarget.dataset.c;
+            
+            // 檢查是否已有棋子
+            if (board[r][c] !== 0) return;
+
+            // 記錄走步歷史
+            moveHistory.push({ r, c, player: current });
+            updateMoveCount();
+
+            // 落子
+            board[r][c] = current;
+            const piece = document.createElement('div');
+            piece.className = 'piece ' + (current === 1 ? 'black' : 'white');
+            e.currentTarget.appendChild(piece);
+
+            // 檢查勝利
+            if (checkWin(r, c, current)) {
+                infoEl.textContent = (current === 1 ? '黑棋' : '白棋') + '獲勝！';
+                gameOver = true;
+                stopTimer();
+                showWinModal(current);
+                return;
+            }
+
+            // 切換玩家
+            current = current === 1 ? 2 : 1;
+            infoEl.textContent = '輪到：' + (current === 1 ? '黑棋' : '白棋');
+        }
+
+        // 檢查勝利條件
+        function checkWin(r, c, p) {
+            const dirs = [[1,0],[0,1],[1,1],[1,-1]]; // 四個方向：橫、豎、斜下、斜上
+            for (const [dr, dc] of dirs) {
+                let cnt = 1;
+                
+                // 正向檢查
+                for (let i = 1; i < 5; i++) {
+                    const nr = r + dr * i;
+                    const nc = c + dc * i;
+                    if (nr >= 0 && nr < SIZE && nc >=0 && nc < SIZE && board[nr][nc] === p) cnt++;
+                    else break;
+                }
+                
+                // 反向檢查
+                for (let i = 1; i < 5; i++) {
+                    const nr = r - dr * i;
+                    const nc = c - dc * i;
+                    if (nr >=0 && nr < SIZE && nc >=0 && nc < SIZE && board[nr][nc] === p) cnt++;
+                    else break;
+                }
+                
+                if (cnt >=5) return true;
+            }
+            return false;
+        }
+
+        // 顯示勝利彈窗
+        function showWinModal(winner) {
+            winnerText.textContent = (winner === 1 ? '黑棋' : '白棋') + '獲勝！';
+            winModal.classList.add('active');
+        }
+
+        // 隱藏勝利彈窗
+        function hideWinModal() {
+            winModal.classList.remove('active');
+        }
+
+        // 重新開始遊戲
+        function restartGame() {
+            board = Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
+            current = 1;
+            gameOver = false;
+            moveHistory = [];
+            infoEl.textContent = '輪到：黑棋';
+            initBoard();
+            hideWinModal();
+            resetTimer();
+            updateMoveCount();
+        }
+
+        // 悔棋功能
+        function undoMove() {
+            if (gameOver || moveHistory.length === 0) return;
+            
+            const lastMove = moveHistory.pop();
+            board[lastMove.r][lastMove.c] = 0;
+            
+            // 移除畫面上的棋子
+            const cell = document.querySelector(`.cell[data-r="${lastMove.r}"][data-c="${lastMove.c}"]`);
+            if (cell) {
+                cell.innerHTML = '';
+            }
+            
+            // 切換回上一個玩家
+            current = lastMove.player;
+            infoEl.textContent = '輪到：' + (current === 1 ? '黑棋' : '白棋');
+            updateMoveCount();
+        }
+
+        // 開始計時器
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                gameTime++;
+                const minutes = Math.floor(gameTime / 60).toString().padStart(2, '0');
+                const seconds = (gameTime % 60).toString().padStart(2, '0');
+                gameTimeEl.textContent = `${minutes}:${seconds}`;
+            }, 1000);
+        }
+
+        // 停止計時器
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        // 重置計時器
+        function resetTimer() {
+            gameTime = 0;
+            gameTimeEl.textContent = '00:00';
+            startTimer();
+        }
+
+        // 更新走步數
+        function updateMoveCount() {
+            moveCountEl.textContent = moveHistory.length;
+        }
+
+        // 事件監聽
+        restartBtn.addEventListener('click', restartGame);
+        undoBtn.addEventListener('click', undoMove);
+        modalRestartBtn.addEventListener('click', restartGame);
+
+        // 初始化
+        initBoard();
+        startTimer();
+    </script>
+</body>
+</html>
